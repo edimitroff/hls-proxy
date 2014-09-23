@@ -10,9 +10,13 @@ import requests
 import simplejson as json
 import m3u8
 import sys
+import urlparse
+import time
 
 URL = sys.argv[1]
 BANDWIDTH=2170880
+DONE=[]
+CH_PATH="/tmp/live/2010/"
 
 def get_channel_json(url):
     """Get spbtv channel json and return channel url"""
@@ -30,27 +34,56 @@ def get_m3u8(url):
     else:
         print "Error!"
 
+def extract_url_base(url):
+    u = urlparse.urlparse(url)
+    a = u.path
+    b = a.rfind("/")
+    return u.scheme+"://"+u.hostname+a[0:b]
+
 def get_and_parse_m3u8(url):
     """Getting and parsing m3u8 playlist.
     In case of root playlist returns URL of playlist with choosen bandwidth.
-    I case of playlist returns dict of URLs of *.ts"""
-    m3u8_obj = m3u8.load(url)
+    I case of playlist returns dict of URLs of *.ts and playlist itself"""
+    #m3u8_obj = m3u8.load(url)
+    base_url = extract_url_base(url)
+    playlist = get_m3u8(url)
+    m3u8_obj = m3u8.loads(playlist)
+    m3u8_obj.base_url = base_url
     if m3u8_obj.is_variant:
         for playlist in m3u8_obj.playlists:
             if playlist.stream_info.bandwidth > BANDWIDTH-100 and playlist.stream_info.bandwidth < BANDWIDTH+100:
-                return m3u8_obj._base_uri+'/'+playlist.uri
+                return m3u8_obj.base_url+'/'+playlist.uri
     else:
+        m3u8_obj.base_uri = base_url
         ts = {}
         for segm in m3u8_obj.segments:
             ts[segm.uri] = segm.absolute_uri
-        return ts
+        return ts,playlist
 
+def get_and_save_ts(ts_dict):
+    """Getting mpeg-ts files and save it"""
+    for ts_name in ts_dict.keys():
+        if ts_name not in DONE:
+            r = requests.get(ts_dict[ts_name])
+            if r.status_code == 200:
+                try:
+                    ts_file=open(CH_PATH+ts_name,'w')
+                    ts_file.write(r.content)
+                    ts_file.close()
+                    DONE.append(ts_name)
+                except:
+                    print "error saving", ts_name
+def save_playlist(playlist):
+    """Save playlist as hi.m3u8"""
+    playlist_file=open(CH_PATH+"hi.m3u8",'w')
+    playlist_file.write(playlist)
+    playlist_file.close()
 
 root_playlist_url = get_channel_json(URL)
-#root_playlist = get_m3u8(root_playlist_url)
-#print parse_m3u8(root_playlist)
 playlist_url = get_and_parse_m3u8(root_playlist_url)
-ts = get_and_parse_m3u8(playlist_url)
-print ts.keys()
-
+while True:
+    ts,playlist = get_and_parse_m3u8(playlist_url)
+    get_and_save_ts(ts)
+    save_playlist(playlist)
+    time.sleep(5)
 
