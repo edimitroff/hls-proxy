@@ -77,6 +77,7 @@ def save_playlist(playlist):
 
 
 def run():
+    DONE=[]
     root_playlist_url = get_channel_json(URL)
     playlist_url = get_and_parse_m3u8(root_playlist_url)
     
