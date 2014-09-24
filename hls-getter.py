@@ -1,11 +1,5 @@
 #!/usr/bin/env python
 
-#Запрашиваем основной URL
-#парсим json и ищем там ссылку на плейлист.
-#Запрашиваем m3u8 из json, парсим его, ищем нужное качество.
-#Запрашиваем m3u8 с нужным качеством, если 401 - начинаем заново с запроса основного URL
-#Парсим m3u8 с качеством, ищем ссылки на ts-ки
-#Качаем ts-ки, раскладываем их по папочкам, если 401 - начинаем заново с запроса основного URL
 import requests
 import simplejson as json
 import m3u8
@@ -16,7 +10,8 @@ import time
 URL = sys.argv[1]
 BANDWIDTH=2170880
 DONE=[]
-CH_PATH="/tmp/live/2010/"
+#CH_PATH=sys.argv[2]
+CH_PATH="/tmp/live/1.stream/"
 
 def get_channel_json(url):
     """Get spbtv channel json and return channel url"""
@@ -32,7 +27,8 @@ def get_m3u8(url):
     if r.status_code == 200:
         return r.text
     else:
-        print "Error!"
+        print "Rerun!"
+        run()
 
 def extract_url_base(url):
     u = urlparse.urlparse(url)
@@ -79,11 +75,16 @@ def save_playlist(playlist):
     playlist_file.write(playlist)
     playlist_file.close()
 
-root_playlist_url = get_channel_json(URL)
-playlist_url = get_and_parse_m3u8(root_playlist_url)
-while True:
-    ts,playlist = get_and_parse_m3u8(playlist_url)
-    get_and_save_ts(ts)
-    save_playlist(playlist)
-    time.sleep(5)
 
+def run():
+    root_playlist_url = get_channel_json(URL)
+    playlist_url = get_and_parse_m3u8(root_playlist_url)
+    
+    while True:
+        ts,playlist = get_and_parse_m3u8(playlist_url)
+        get_and_save_ts(ts)
+        save_playlist(playlist)
+        time.sleep(5)
+
+
+run()
