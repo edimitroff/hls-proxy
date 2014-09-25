@@ -75,9 +75,12 @@ def save_playlist(playlist):
     playlist_file.write(playlist)
     playlist_file.close()
 
+def done_list_cleanup():
+    global DONE
+    if len(DONE) > 100:
+        DONE = DONE[-100:]
 
 def run():
-    DONE=[]
     root_playlist_url = get_channel_json(URL)
     playlist_url = get_and_parse_m3u8(root_playlist_url)
     
@@ -86,6 +89,6 @@ def run():
         get_and_save_ts(ts)
         save_playlist(playlist)
         time.sleep(5)
-
+        done_list_cleanup()
 
 run()
